@@ -1,0 +1,23 @@
+{
+  "api_endpoints": {
+    "pumpfun": "https://pump.fun/advanced",
+    "dexscreener": "https://api.dexscreener.com/",
+    "gmgn_ai": "https://gmgn.ai/api/",
+    "rocker_universe": "https://rocker.universe/api/validate-volume",
+    "rugcheck": "https://rugcheck.xyz/api/check",
+    "tweetscout": "https://app.tweetscout.io/api/getScore"
+  },
+  "filters": {
+    "pair_age_hours": 24,
+    "min_1h_txns": 150,
+    "min_5m_txns": 25,
+    "tweetscout_score_threshold": 450
+  },
+  "blacklist": {
+    "memecoins": ["DOGEMOON", "SHIBA2K23", "CATCOIN"],
+    "developers": ["0xdev123", "0xdev456", "0xscamdev"]
+  },
+  "volume_check": {
+    "use_rocker_api": true
+  }
+}
