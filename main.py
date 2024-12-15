@@ -5,20 +5,17 @@ from datetime import datetime, timedelta
 
 class CoinFilter:
     def __init__(self, config_file="config.json"):
-        # Load configuration
+        # Cargar configuración
         with open(config_file, "r") as f:
             self.config = json.load(f)
         
         self.pumpfun_url = self.config["api_endpoints"]["pumpfun"]
         self.dexscreener_url = self.config["api_endpoints"]["dexscreener"]
         self.gmgn_ai_url = self.config["api_endpoints"]["gmgn_ai"]
-        self.rocker_universe_url = self.config["api_endpoints"]["rocker_universe"]
-        self.rugcheck_url = self.config["api_endpoints"]["rugcheck"]
-        self.tweetscout_url = self.config["api_endpoints"]["tweetscout"]
+        self.rugcheck_file = "rugcheck.json"  # Usaremos el archivo local
         
         self.filters = self.config["filters"]
         self.blacklist = self.config["blacklist"]
-        self.use_rocker_api = self.config["volume_check"]["use_rocker_api"]
         self.coins_data = []
 
     # Step 1: PumpFun Integration
@@ -50,9 +47,7 @@ class CoinFilter:
             if response.status_code == 200:
                 token_data = response.json()
                 if self.filter_dexscreener_data(token_data, coin["developer"]):
-                    if self.verify_volume(token_data) and self.verify_contract(token_data):
-                        social_media_status = self.check_social_media(coin["symbol"])
-                        token_data["social_media_status"] = social_media_status
+                    if self.verify_contract(token_data):
                         filtered_tokens.append(token_data)
         print(f"Filtered {len(filtered_tokens)} tokens from DexScreener.")
         return filtered_tokens
@@ -72,56 +67,27 @@ class CoinFilter:
         except KeyError:
             return False
 
-    def verify_volume(self, token_data):
-        if self.use_rocker_api:
-            print(f"Validating volume with Rocker Universe for token {token_data['symbol']}...")
-            response = requests.post(self.rocker_universe_url, json={"tokenId": token_data["id"]})
-            if response.status_code == 200:
-                return response.json().get("isValid", False)
-            else:
-                print(f"Failed to validate volume for {token_data['symbol']} using Rocker Universe.")
-                return False
-        else:
-            print(f"Validating volume with custom algorithm for token {token_data['symbol']}...")
-            return self.custom_volume_check(token_data)
-    
     def verify_contract(self, token_data):
-        print(f"Checking contract for token {token_data['symbol']} on RugCheck...")
-        response = requests.post(self.rugcheck_url, json={"tokenAddress": token_data["contract"]})
-        if response.status_code == 200:
-            data = response.json()
-            if data.get("status") != "Good":
-                print(f"Token {token_data['symbol']} failed RugCheck verification.")
-                return False
-            if data.get("isBundledSupply", False):
-                print(f"Token {token_data['symbol']} has a bundled supply. Adding to blacklist.")
-                self.blacklist["memecoins"].append(token_data["symbol"])
-                self.blacklist["developers"].append(token_data["developer"])
-                return False
-            return True
-        else:
-            print(f"Failed to verify contract for {token_data['symbol']} using RugCheck.")
+        """
+        Verificar el contrato usando el archivo rugcheck.json local.
+        """
+        print(f"Checking contract for token {token_data['symbol']} in RugCheck...")
+        try:
+            with open(self.rugcheck_file, "r") as f:
+                rugcheck_data = json.load(f)
+            
+            for entry in rugcheck_data:
+                if entry.get("contractAddress") == token_data["contract"]:
+                    if entry.get("status") == "Good":
+                        return True
+                    else:
+                        print(f"Token {token_data['symbol']} failed RugCheck verification.")
+                        return False
+            print(f"Token {token_data['symbol']} not found in RugCheck data.")
             return False
-
-    def check_social_media(self, token_symbol):
-        """
-        Check the social media score of the token using TweetScout API.
-        - "Good" if score > 450
-        - "Medium" if score <= 450
-        """
-        print(f"Checking social media status for {token_symbol} on TweetScout...")
-        response = requests.get(f"{self.tweetscout_url}?symbol={token_symbol}")
-        if response.status_code == 200:
-            score = response.json().get("score", 0)
-            if score > self.filters["tweetscout_score_threshold"]:
-                print(f"Token {token_symbol} has a good social media score ({score}).")
-                return "Good"
-            else:
-                print(f"Token {token_symbol} has a medium social media score ({score}).")
-                return "Medium"
-        else:
-            print(f"Failed to check social media status for {token_symbol}.")
-            return "Unknown"
+        except FileNotFoundError:
+            print("RugCheck file not found. Skipping contract verification.")
+            return False
 
     # Step 3: GMGN.ai Integration
     def analyze_gmgn_ai(self, tokens):
@@ -157,7 +123,8 @@ if __name__ == "__main__":
     coin_filter = CoinFilter()
     filtered_coins = coin_filter.run()
 
-    # Save results to a CSV
+    # Guardar resultados a un archivo CSV
     if filtered_coins:
         pd.DataFrame(filtered_coins).to_csv("filtered_coins.csv", index=False)
         print("Filtered coins saved to 'filtered_coins.csv'")
+
