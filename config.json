@@ -7,6 +7,12 @@
     "rugcheck": "https://rugcheck.xyz/api/check",
     "tweetscout": "https://app.tweetscout.io/api/getScore"
   },
+  "api_keys": {
+    "telegram": "    ",
+    "tweetscout": "TU_CLAVE_TWEETSCOUT",
+    "rugcheck": "TU_CLAVE_RUGCHECK",
+    "rocker_universe": "TU_CLAVE_ROCKER"
+    },
   "filters": {
     "pair_age_hours": 24,
     "min_1h_txns": 150,
